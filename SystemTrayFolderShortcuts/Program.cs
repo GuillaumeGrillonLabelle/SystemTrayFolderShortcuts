@@ -410,10 +410,9 @@ namespace SystemTrayFolderShortcuts
 			{
 				if (!string.IsNullOrEmpty(ext))
 				{
-					int index = fileName.LastIndexOf(ext);
-					if (index == fileName.Length - ext.Length)
+					if (fileName.EndsWith(ext))
 					{
-						fileName = fileName.Substring(0, index);
+						fileName = fileName.Substring(0, fileName.LastIndexOf(ext));
 					}
 				}
 			}
