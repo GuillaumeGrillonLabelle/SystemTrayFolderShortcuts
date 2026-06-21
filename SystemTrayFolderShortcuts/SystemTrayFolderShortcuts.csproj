@@ -11,6 +11,8 @@
     <NeutralLanguage>en</NeutralLanguage>
     <FileVersion>1.0.1.0</FileVersion>
     <AssemblyVersion>1.0.1</AssemblyVersion>
+    <Company>$(Authors)</Company>
+    <Authors>Guillaume Grillon-Labelle,$(AssemblyName)</Authors>
   </PropertyGroup>
 
   <ItemGroup>

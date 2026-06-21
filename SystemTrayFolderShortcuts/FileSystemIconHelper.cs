@@ -69,7 +69,7 @@ namespace SystemTrayFolderShortcuts
 
 			int hr = SHGetStockIconInfo(SHSTOCKICONID.FOLDER, flags, ref info);
 			if (hr != 0)
-				throw Marshal.GetExceptionForHR(hr);
+				throw Marshal.GetExceptionForHR(hr) ?? new Exception("GetDefaultFolderIcon() didn't work and couldn't get the proper error message, though luck!");
 
 			// Create a managed Icon from the handle
 			Icon icon = (Icon)Icon.FromHandle(info.hIcon).Clone();

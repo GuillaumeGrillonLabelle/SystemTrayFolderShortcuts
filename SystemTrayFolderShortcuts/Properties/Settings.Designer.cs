@@ -25,18 +25,6 @@ namespace SystemTrayFolderShortcuts.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("False")]
-        public bool LaunchOnStartup {
-            get {
-                return ((bool)(this["LaunchOnStartup"]));
-            }
-            set {
-                this["LaunchOnStartup"] = value;
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("")]
         public string Folders {
             get {

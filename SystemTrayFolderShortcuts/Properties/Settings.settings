@@ -2,9 +2,6 @@
 <SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="SystemTrayFolderShortcuts.Properties" GeneratedClassName="Settings">
   <Profiles />
   <Settings>
-    <Setting Name="LaunchOnStartup" Type="System.Boolean" Scope="User">
-      <Value Profile="(Default)">False</Value>
-    </Setting>
     <Setting Name="Folders" Type="System.String" Scope="User">
       <Value Profile="(Default)" />
     </Setting>

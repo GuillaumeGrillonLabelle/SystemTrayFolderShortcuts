@@ -1,4 +1,6 @@
+using Microsoft.Win32;
 using System.Diagnostics;
+using System.IO;
 
 namespace SystemTrayFolderShortcuts
 {
@@ -20,6 +22,8 @@ namespace SystemTrayFolderShortcuts
 		private ToolStripTextBox MaxFolderDepthToolStripTextBox = new();
 
 		private ToolStripSeparator mainContextMenuFolderSeparator = new ToolStripSeparator() { Visible = false };
+
+		private bool? isRegisteredToLaunchOnStartup = null;
 
 		public MyApplicationContext()
 		{
@@ -67,9 +71,7 @@ namespace SystemTrayFolderShortcuts
 								},
 								new ToolStripMenuItem("Launch on Startup", null, new EventHandler(OnToggleLaunchOnStartupChanged))
 								{
-									CheckOnClick = true,
-									Checked = Properties.Settings.Default.LaunchOnStartup,
-									Enabled = false
+									Checked = IsRegisteredToLaunchOnStartup()
 								}
 							}
 						},
@@ -92,7 +94,7 @@ namespace SystemTrayFolderShortcuts
 				var result = MessageBox.Show($"There was an error reading you settings.\n{ex.ToString()}\n\nSorry.\nClearing your setting might help fix the issue. Do you want to clear your settings?", "ERROR", MessageBoxButtons.YesNo, MessageBoxIcon.Error);
 				if (result == DialogResult.Yes)
 				{
-					if (Properties.Settings.Default.LaunchOnStartup)
+					if (IsRegisteredToLaunchOnStartup())
 					{
 						OnToggleLaunchOnStartupChanged(null, EventArgs.Empty);
 					}
@@ -276,10 +278,72 @@ namespace SystemTrayFolderShortcuts
 
 		private void OnToggleLaunchOnStartupChanged(object? sender, EventArgs e)
 		{
-			Properties.Settings.Default.LaunchOnStartup = !Properties.Settings.Default.LaunchOnStartup;
-			Properties.Settings.Default.Save();
+			ToolStripMenuItem? tsmi = sender as ToolStripMenuItem;
+			if (tsmi != null)
+			{
+				bool enable = !isRegisteredToLaunchOnStartup.HasValue || !isRegisteredToLaunchOnStartup.Value;
+				RegisteredToLaunchOnStartup(enable);
 
-			//TODO: Do the thing
+				tsmi.Checked = isRegisteredToLaunchOnStartup.HasValue && isRegisteredToLaunchOnStartup.Value;
+			}
+		}
+
+		private void RegisteredToLaunchOnStartup(bool enable)
+		{
+			isRegisteredToLaunchOnStartup = false;
+			using (RegistryKey? key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true))
+			{
+				if (key != null && Application.ProductName != null)
+				{
+					if (enable)
+					{
+						key.SetValue(Application.ProductName, $"\"{Application.ExecutablePath}\"");
+					}
+					else
+					{
+						key.DeleteValue(Application.ProductName, false);
+					}
+					isRegisteredToLaunchOnStartup = enable;
+				}
+			}
+		}
+
+		private bool IsRegisteredToLaunchOnStartup()
+		{
+			if (!isRegisteredToLaunchOnStartup.HasValue)
+			{
+				isRegisteredToLaunchOnStartup = false;
+
+				string? currentExecPathForStartup = null;
+
+				using (RegistryKey? key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", false))
+				{
+					if (key != null && Application.ProductName != null)
+					{
+						currentExecPathForStartup = key.GetValue(Application.ProductName) as string;
+					}
+				}
+
+				if (currentExecPathForStartup == null || currentExecPathForStartup == $"\"{Application.ExecutablePath}\"")
+				{
+					isRegisteredToLaunchOnStartup = currentExecPathForStartup != null;
+				}
+				else
+				{
+					var result = MessageBox.Show($"{Application.ProductName} is already registered to launch on startup but with a different executable path.\n{currentExecPathForStartup}\nDo you want to replace it with the current executable?", $"{Application.ProductName} - Already a startup app", MessageBoxButtons.YesNo);
+
+					if (result == DialogResult.Yes)
+					{
+						RegisteredToLaunchOnStartup(true);
+					}
+					else
+					{
+						isRegisteredToLaunchOnStartup = false;
+					}
+				}
+			}
+
+			return isRegisteredToLaunchOnStartup.Value;
 		}
 
 		private void OnToggleDarkModeChanged(object? sender, EventArgs e)
