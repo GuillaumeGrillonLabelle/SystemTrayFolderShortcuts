@@ -17,9 +17,6 @@ namespace SystemTrayFolderShortcuts
     internal class MyApplicationContext : ApplicationContext
     {
 		private NotifyIcon? mainSysTrayIcon;
-		private Dictionary<string, NotifyIcon> foldersMap = [];
-		private ContextMenuStrip folderMenu = new();
-		private bool isFolderMenuOpened = false;
 		private ToolStripTextBox MaxFolderDepthToolStripTextBox = new();
 
 		private ToolStripSeparator mainContextMenuFolderSeparator = new ToolStripSeparator() { Visible = false };
@@ -30,9 +27,6 @@ namespace SystemTrayFolderShortcuts
 
 			MaxFolderDepthToolStripTextBox.TextBox.KeyDown += MaxFolderDepth_KeyDown;
 			MaxFolderDepthToolStripTextBox.TextBox.LostFocus += MaxFolderDepth_LostFocus;
-
-			folderMenu.Opened += OnFolderMenu_Opened;
-			folderMenu.Closed += OnFolderMenu_Closed;
 
 			Init();
 		}
@@ -66,11 +60,6 @@ namespace SystemTrayFolderShortcuts
 							DropDownItems = 
 							{
 								MaxFolderDepthToolStripTextBox,
-								new ToolStripMenuItem("Folders are in the Main Context Menu", null, new EventHandler(OnToggleFoldersAreInTheMainContextMenuChanged))
-								{
-									CheckOnClick = true,
-									Checked = Properties.Settings.Default.FoldersAreInTheMainContextMenu
-								},
 								new ToolStripMenuItem("Dark Mode", null, new EventHandler(OnToggleDarkModeChanged))
 								{
 									CheckOnClick = true,
@@ -93,19 +82,9 @@ namespace SystemTrayFolderShortcuts
 			{
 				List<string> folders = DeserializeFoldersSetting();
 
-				if (Properties.Settings.Default.FoldersAreInTheMainContextMenu)
+				foreach (var path in folders)
 				{
-					foreach (var path in folders)
-					{
-						AddFolderToMainContextMenu(path);
-					}
-				}
-				else
-				{
-					foreach (var path in folders)
-					{
-						InitFolderSystemTrayIcon(path);
-					}
+					AddFolderToMainContextMenu(path);
 				}
 			}
 			catch (Exception ex)
@@ -121,24 +100,6 @@ namespace SystemTrayFolderShortcuts
 					Properties.Settings.Default.Save();
 				}
 			}
-
-			//folderMenu.MouseLeave += OnFolderMenu_MouseLeave;
-			folderMenu.AutoClose = true;
-		}
-
-		private void OnFolderMenu_Closed(object? sender, ToolStripDropDownClosedEventArgs e)
-		{
-			isFolderMenuOpened = false;
-		}
-
-		private void OnFolderMenu_Opened(object? sender, EventArgs e)
-		{
-			isFolderMenuOpened = true;
-		}
-
-		private void OnFolderMenu_MouseLeave(object? sender, EventArgs e)
-		{
-			folderMenu.Close();
 		}
 
 		private void OnExitRequested(object? sender, EventArgs e)
@@ -158,17 +119,11 @@ namespace SystemTrayFolderShortcuts
 
 		private void OnApplicationExit(object? sender, EventArgs e)
 		{
-			Cleanup();
+			Cleanup(true);
 		}
 
-		private void Cleanup()
+		private void Cleanup(bool exitingApplication = false)
 		{
-			foreach (var x in foldersMap)
-			{
-				RemoveIcon(x.Value, true);
-			}
-			foldersMap.Clear();
-
 			if (mainSysTrayIcon != null)
 			{
 				RemoveIcon(mainSysTrayIcon, false);
@@ -190,19 +145,9 @@ namespace SystemTrayFolderShortcuts
 				selectedPath = fbd.SelectedPath;
 			}
 
-			// A simple input dialog box, to get a 4 letter name
-			// https://www.makeuseof.com/winforms-input-dialog-box-create-display/
-
 			AddFolderToSettings(selectedPath);
 
-			if (Properties.Settings.Default.FoldersAreInTheMainContextMenu)
-			{
-				AddFolderToMainContextMenu(selectedPath);
-			}
-			else
-			{
-				InitFolderSystemTrayIcon(selectedPath);
-			}
+			AddFolderToMainContextMenu(selectedPath);
 		}
 
 		private void AddFolderToSettings(string path)
@@ -211,50 +156,6 @@ namespace SystemTrayFolderShortcuts
 			folders.Add(path);
 			Properties.Settings.Default.Folders = SerializeFoldersSetting(folders);
 			Properties.Settings.Default.Save();
-		}
-
-		private void InitFolderSystemTrayIcon(string path)
-		{
-			DirectoryInfo di = new DirectoryInfo(path);
-			
-			NotifyIcon icon = new NotifyIcon
-			{
-				Text = di.Name,
-				Icon = CreateTextIcon(di.Name),
-				Tag = path,
-				Visible = true,
-				ContextMenuStrip = new ContextMenuStrip
-				{
-					RenderMode = ToolStripRenderMode.Professional,
-					Renderer = Properties.Settings.Default.UseDarkMode ? new DarkRenderer() : null,
-					Items =
-					{
-						new ToolStripMenuItem("Open Folder", null, new EventHandler(OnOpenFileOrFolderRequested)) { Tag = path },
-						new ToolStripMenuItem("Remove Folder", null, new EventHandler(OnRemoveFolderRequested)) { Tag = path }
-					}
-				}
-			};
-			foldersMap.Add(path, icon);
-
-			icon.Click += OnFolderIcon_Clicked;
-		}
-
-		private Icon CreateTextIcon(string text)
-		{
-			Font fontToUse = new Font("Tahoma", 10, FontStyle.Regular, GraphicsUnit.Pixel);
-			Brush brushToUse = new SolidBrush(Color.White);
-			Bitmap bitmapText = new Bitmap(16, 16);
-			Graphics g = Graphics.FromImage(bitmapText);
-
-			IntPtr hIcon;
-
-			g.Clear(Color.Black);
-			g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.SingleBitPerPixelGridFit;
-			g.DrawString(text.Substring(0, 2), fontToUse, brushToUse, 0, -2);
-			g.DrawString(text.Substring(2, 2), fontToUse, brushToUse, 0, 5);
-
-			hIcon = (bitmapText.GetHicon());
-			return Icon.FromHandle(hIcon);
 		}
 
 		private void OnOpenFileOrFolderRequested(object? sender, EventArgs e)
@@ -287,22 +188,13 @@ namespace SystemTrayFolderShortcuts
 
 			RemoveFolderFromSettings(path);
 
-			if (Properties.Settings.Default.FoldersAreInTheMainContextMenu)
-			{
-				RemoveFolderFromMainContextMenu(path);
-			}
-			else
-			{
-				RemoveIcon(foldersMap[path], true);
-
-				foldersMap.Remove(path);
-			}
+			RemoveFolderFromMainContextMenu(path);
 		}
 
-		private void RemoveIcon(NotifyIcon icon, bool destroyIcon)
+		private void RemoveIcon(NotifyIcon icon, bool disposeIcon)
 		{
 			icon.Visible = false;
-			if (destroyIcon)
+			if (disposeIcon)
 			{
 				icon.Icon?.Dispose();
 			}
@@ -320,47 +212,6 @@ namespace SystemTrayFolderShortcuts
 			Properties.Settings.Default.Folders = SerializeFoldersSetting(folders);
 
 			Properties.Settings.Default.Save();
-		}
-
-		private void OnFolderIcon_Clicked(object? sender, EventArgs e)
-		{
-			// TODO, I might want to have 2 context menu strips to fix the auto close issue.
-
-			var icon = sender as NotifyIcon;
-			var path = icon?.Tag as string;
-			var mea = e as MouseEventArgs;
-			if (path == null || mea == null || mea.Button != MouseButtons.Left)
-			{
-				return;
-			}
-
-			if (isFolderMenuOpened)
-			{
-				folderMenu.Close();
-				return;
-			}
-
-			folderMenu.Items.Clear();
-			
-			DirectoryInfo di = new DirectoryInfo(path);
-			if (di.Exists)
-			{
-				foreach (var folder in di.EnumerateDirectories())
-				{
-					folderMenu.Items.Add(CreateFolderMenuItem(folder));
-				}
-
-				foreach (var file in di.EnumerateFiles())
-				{
-					folderMenu.Items.Add(CreateFileMenuItem(file));
-				}
-			}
-			else
-			{
-				folderMenu.Items.Add("The folder does not exist anymore.");
-			}
-
-			folderMenu.Show(Cursor.Position);
 		}
 
 		private ToolStripMenuItem CreateFolderMenuItem(DirectoryInfo folder, int folderDepth = 1)
@@ -429,15 +280,6 @@ namespace SystemTrayFolderShortcuts
 			Properties.Settings.Default.Save();
 
 			//TODO: Do the thing
-		}
-
-		private void OnToggleFoldersAreInTheMainContextMenuChanged(object? sender, EventArgs e)
-		{
-			Properties.Settings.Default.FoldersAreInTheMainContextMenu = !Properties.Settings.Default.FoldersAreInTheMainContextMenu;
-			Properties.Settings.Default.Save();
-
-			Cleanup();
-			Init();
 		}
 
 		private void OnToggleDarkModeChanged(object? sender, EventArgs e)

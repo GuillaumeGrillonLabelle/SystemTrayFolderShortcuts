@@ -49,18 +49,6 @@ namespace SystemTrayFolderShortcuts.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("True")]
-        public bool FoldersAreInTheMainContextMenu {
-            get {
-                return ((bool)(this["FoldersAreInTheMainContextMenu"]));
-            }
-            set {
-                this["FoldersAreInTheMainContextMenu"] = value;
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("False")]
         public bool UseDarkMode {
             get {
