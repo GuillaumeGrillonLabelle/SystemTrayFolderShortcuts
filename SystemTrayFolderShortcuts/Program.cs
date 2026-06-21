@@ -59,6 +59,7 @@ namespace SystemTrayFolderShortcuts
 					{
 						mainContextMenuFolderSeparator,
 						new ToolStripMenuItem("Add Folder", null, new EventHandler(OnAddFolderRequested)),
+						new ToolStripMenuItem("Refresh Folders", null, new EventHandler(OnRefreshFoldersRequested)),
 						new ToolStripMenuItem("Settings", null)
 						{
 							DropDownItems = 
@@ -276,6 +277,12 @@ namespace SystemTrayFolderShortcuts
 			};
 		}
 
+		private void OnRefreshFoldersRequested(object? sender, EventArgs e)
+		{
+			Cleanup();
+			Init();
+		}
+
 		private void OnToggleLaunchOnStartupChanged(object? sender, EventArgs e)
 		{
 			ToolStripMenuItem? tsmi = sender as ToolStripMenuItem;
@@ -379,19 +386,24 @@ namespace SystemTrayFolderShortcuts
 				index++;
 			}
 
-			var folderMenuItem = new ToolStripMenuItem(di.Name, FileSystemIconHelper.GetFolderIcon())
-			{
-				Tag = path,
-				DropDownItems =
-				{
-					new ToolStripMenuItem("Open Folder", null, new EventHandler(OnOpenFileOrFolderRequested)) { Tag = path },
-					new ToolStripMenuItem("Remove Folder", null, new EventHandler(OnRemoveFolderRequested)) { Tag = path },
-					new ToolStripSeparator()
-				}
-			};
+			var folderMenuItem = new ToolStripMenuItem(di.Name, FileSystemIconHelper.GetFolderIcon()) { Tag = path };
 
 			mainSysTrayIcon.ContextMenuStrip.Items.Insert(index, folderMenuItem);
 
+			CreateFolderControls(folderMenuItem, path);
+			CreateFolderContent(folderMenuItem, di);
+		}
+
+		private void CreateFolderControls(ToolStripMenuItem folderMenuItem, string path)
+		{
+			folderMenuItem.DropDownItems.Add(new ToolStripMenuItem("Open Folder", null, new EventHandler(OnOpenFileOrFolderRequested)) { Tag = path });
+			folderMenuItem.DropDownItems.Add(new ToolStripMenuItem("Remove Folder", null, new EventHandler(OnRemoveFolderRequested)) { Tag = path });
+			folderMenuItem.DropDownItems.Add(new ToolStripMenuItem("Refresh Folder", null, new EventHandler(OnRefreshFolderRequested)) { Tag = path });
+			folderMenuItem.DropDownItems.Add(new ToolStripSeparator());
+		}
+
+		private void CreateFolderContent(ToolStripMenuItem folderMenuItem, DirectoryInfo di)
+		{
 			foreach (var folder in di.EnumerateDirectories())
 			{
 				folderMenuItem.DropDownItems.Add(CreateFolderMenuItem(folder));
@@ -400,6 +412,40 @@ namespace SystemTrayFolderShortcuts
 			foreach (var file in di.EnumerateFiles())
 			{
 				folderMenuItem.DropDownItems.Add(CreateFileMenuItem(file));
+			}
+		}
+
+		private void OnRefreshFolderRequested(object? sender, EventArgs e)
+		{
+			if (sender is ToolStripMenuItem tsmi)
+			{
+				string? path = tsmi.Tag as string;
+				if (path == null)
+				{
+					return;
+				}
+
+				DirectoryInfo di = new DirectoryInfo(path);
+				if (!di.Exists)
+				{
+					var result = MessageBox.Show($"Trying to refresh the folder \"{path}\", but it does not exist anymore. Do you want to remove it?", "Folder not found during refresh", MessageBoxButtons.YesNo);
+
+					if (result == DialogResult.Yes)
+					{
+						RemoveFolderFromSettings(path);
+
+						RemoveFolderFromMainContextMenu(path);
+					}
+					return;
+				}
+
+				if (tsmi.OwnerItem is ToolStripMenuItem folderMenuItem)
+				{
+					folderMenuItem.DropDownItems.Clear();
+					
+					CreateFolderControls(folderMenuItem, path);
+					CreateFolderContent(folderMenuItem, di);
+				}
 			}
 		}
 
